@@ -143,6 +143,8 @@ Doc.prototype.applyUpdate = function (update, source) {
   var changes = update[0][1]
   var timestamp = update[1]
   var from    = update[2]
+  // Local time of change
+  var now     = Date.now()
 
   if(id === '__proto__')
     return this.emit('invalid', new Error('__proto__ is illegial id'))
@@ -152,6 +154,14 @@ Doc.prototype.applyUpdate = function (update, source) {
   var row = this._add(id, source)
   var hist = this.hist[id] = this.hist[id] || {}
   var emit = false, oldnews = false
+
+  function checkLocalUpdate(history, update) {
+    // Only do this conversion when dealing with historical updates from
+    // sources other than this (with potential different clock)
+    if (history[2] === update[2] || history.length < 4) return false;
+    // Check that the last known update was before this update
+    return (between.strord(history[3], now) < 0);
+  }
 
 
   //remember the most recent update from each node.
@@ -189,10 +199,10 @@ Doc.prototype.applyUpdate = function (update, source) {
     for(var key in changes) {
       if(changes.hasOwnProperty(key)) { 
         var value = changes[key]
-        if(!hist[key] || order(hist[key], update) < 0) {
+        if(!hist[key] || checkLocalUpdate(hist[key], update) || order(hist[key], update) < 0) {
           if(hist[key] && !~maybe.indexOf(hist[key]))
             maybe.push(hist[key])
-          hist[key] = update
+          hist[key] = [update[0], update[1], update[2], now, this.id]
           changed[key] = value
           emit = true
         }
