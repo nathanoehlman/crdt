@@ -197,7 +197,7 @@ Doc.prototype.applyUpdate = function (update, source) {
   else {
     var maybe = []
     for(var key in changes) {
-      if(changes.hasOwnProperty(key)) { 
+      if(changes.hasOwnProperty(key)) {
         var value = changes[key]
         if(!hist[key] || checkLocalUpdate(hist[key], update) || order(hist[key], update) < 0) {
           if(hist[key] && !~maybe.indexOf(hist[key]))
@@ -223,6 +223,11 @@ Doc.prototype.applyUpdate = function (update, source) {
 //  at once,
 
   merge(row.state, changed)
+
+  // Before emitting local doc and set events, emit the _update event to send changes
+  // This prevents updates in these events from causing this update to be ignored
+  if (emit) this.emit('_update', update);
+
   for(var k in changed)
     this.sets.emit(k, row, changed)
 
@@ -233,7 +238,7 @@ Doc.prototype.applyUpdate = function (update, source) {
     this.emit('create', row) //alias
     row._new = false
   }
-  this.emit('_update', update)
+
   row.emit('update', update, changed)
   row.emit('changes', changes, changed)
   row.emit('change', changed) //installing this in paralel, so tests still pass.
